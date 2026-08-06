@@ -53,6 +53,9 @@ final class AuditService implements AuditServiceContract
         array $meta = [],
         ?string $ip = null,
     ): void {
+        // Redact BEFORE either sink sees it — see redact().
+        $meta = self::redact($meta);
+
         $userId   ??= ($this->actorId ?: null);
         $tenantId ??= ($this->currentTenant !== null && $this->currentTenant !== '' ? $this->currentTenant : null);
         $ip       ??= ($this->clientIp !== null && $this->clientIp !== '' ? $this->clientIp : null);
@@ -80,5 +83,68 @@ final class AuditService implements AuditServiceContract
         } catch (\Throwable) {
             // Best-effort — the log line above is the durable fallback.
         }
+    }
+
+    /**
+     * Keys whose VALUES must never reach the audit trail.
+     *
+     * Matched case-insensitively as a substring, so "smtp_password",
+     * "api_key" and "authorization" are all caught by the entries below.
+     */
+    private const REDACTED_KEYS = [
+        'password', 'passwd', 'secret', 'token', 'api_key', 'apikey',
+        'authorization', 'auth', 'credential', 'private_key', 'client_secret',
+        'access_key', 'session', 'cookie', 'otp', 'pin', 'signature',
+    ];
+
+    /** Replacement written in place of a redacted value. */
+    private const REDACTION = '[redacted]';
+
+    /**
+     * Strip secrets from audit metadata.
+     *
+     * The audit trail is written to a SIEM line AND an audit_log row, and both
+     * are widely readable by design — that is the point of an audit trail. The
+     * "never log secrets" rule was documented but nothing enforced it, so any
+     * caller passing a password, token or API key in $meta silently persisted it
+     * in cleartext to two places, indefinitely, in a store that is deliberately
+     * append-only and hard to purge.
+     *
+     * Deny-list rather than allow-list: an allow-list would silently drop
+     * legitimate context whenever someone added a field, which teaches people to
+     * stop using meta. This keeps everything except what looks like a secret.
+     *
+     * Recurses into nested arrays, since meta routinely carries a payload.
+     *
+     * @param  array<array-key, mixed> $meta
+     * @return array<array-key, mixed>
+     */
+    private static function redact(array $meta): array
+    {
+        foreach ($meta as $key => $value) {
+            if (\is_string($key) && self::isSecretKey($key)) {
+                $meta[$key] = self::REDACTION;
+                continue;
+            }
+
+            if (\is_array($value)) {
+                $meta[$key] = self::redact($value);
+            }
+        }
+
+        return $meta;
+    }
+
+    private static function isSecretKey(string $key): bool
+    {
+        $key = strtolower($key);
+
+        foreach (self::REDACTED_KEYS as $needle) {
+            if (str_contains($key, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
