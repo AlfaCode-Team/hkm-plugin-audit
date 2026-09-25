@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Plugins\Audit\Application\Ports;
 
 /**
- * Persistence seam for the append-only central `audit_log` trail (write side).
+ * Persistence seam for the append-only `audit_log` trail (write side).
  *
  * Implemented by {@see \Plugins\Audit\Infrastructure\Persistence\AuditTrail},
  * consumed ONLY by {@see \Plugins\Audit\Application\Services\AuditService}. The

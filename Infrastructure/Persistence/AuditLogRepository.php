@@ -10,10 +10,11 @@ use Plugins\Audit\API\Contracts\AuditReaderContract;
 use Plugins\Audit\Domain\Entities\AuditEntry;
 
 /**
- * AuditLogRepository — read/query side of the central `audit_log` trail.
+ * AuditLogRepository — read/query side of the `audit_log` trail.
  *
- * Access rule: DatabasePort ONLY (the CENTRAL connection — the trail lives in
- * the control-plane DB, never a tenant DB). Writes go through {@see AuditTrail};
+ * Access rule: DatabasePort ONLY — the request's connection, so on a
+ * tenant-routed request this reads THAT tenant's trail (see Provider). Writes
+ * go through {@see AuditTrail};
  * this is the read counterpart, leaning on the
  * (tenant_id|user_id|action, occurred_at) indexes.
  *
@@ -30,7 +31,7 @@ final class AuditLogRepository implements AuditReaderContract
     private const MAX_LIMIT = 200;
 
     public function __construct(
-        private readonly DatabasePort $central,
+        private readonly DatabasePort $db,
     ) {}
 
     public function recent(int $limit = 50, ?int $beforeId = null): array
@@ -56,7 +57,7 @@ final class AuditLogRepository implements AuditReaderContract
     public function find(string $eventId): ?AuditEntry
     {
         try {
-            $row = $this->central->queryOne(
+            $row = $this->db->queryOne(
                 self::SELECT . ' WHERE event_id = :event_id LIMIT 1',
                 ['event_id' => $eventId],
             );
@@ -70,7 +71,7 @@ final class AuditLogRepository implements AuditReaderContract
     public function countForTenant(string $tenantId): int
     {
         try {
-            $row = $this->central->queryOne(
+            $row = $this->db->queryOne(
                 'SELECT COUNT(*) AS c FROM audit_log WHERE tenant_id = :tenant_id',
                 ['tenant_id' => $tenantId],
             );
@@ -84,7 +85,7 @@ final class AuditLogRepository implements AuditReaderContract
     public function purgeOlderThan(\DateTimeImmutable $cutoff): int
     {
         try {
-            return $this->central->execute(
+            return $this->db->execute(
                 'DELETE FROM audit_log WHERE occurred_at < :cutoff',
                 ['cutoff' => $cutoff->format('Y-m-d H:i:s')],
             );
@@ -113,7 +114,7 @@ final class AuditLogRepository implements AuditReaderContract
             . ' ORDER BY id DESC LIMIT ' . $limit;
 
         try {
-            $rows = $this->central->query($sql, $params);
+            $rows = $this->db->query($sql, $params);
         } catch (\Throwable $e) {
             throw new RepositoryException('Failed to list audit entries.', layer: 'repository.audit', previous: $e);
         }

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Plugins\Audit\API\Contracts;
 
 /**
- * Published write contract for the shared central audit trail.
+ * Published write contract for the audit trail (on the request's connection —
+ * a tenant-routed request records into that tenant's own `audit_log`).
  *
  * The ONE way any plugin records a security-relevant action (register, delete,
  * failed login, lockout, password rehash, email verification, tenant switch,

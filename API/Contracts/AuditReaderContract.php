@@ -7,7 +7,8 @@ namespace Plugins\Audit\API\Contracts;
 use Plugins\Audit\Domain\Entities\AuditEntry;
 
 /**
- * Published read/query contract for the central `audit_log` trail (the
+ * Published read/query contract for the `audit_log` trail on the request's
+ * connection — a tenant-routed request reads that tenant's own trail (the
  * counterpart to {@see AuditServiceContract}). Lets a control plane surface
  * audit history — per tenant, per user, per action — and prune it for
  * retention, without coupling callers to SQL.

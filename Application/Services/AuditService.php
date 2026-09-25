@@ -13,7 +13,7 @@ use Plugins\Audit\Application\Ports\AuditWriter;
  * Two durable sinks per entry:
  *   1. a structured JSON log line (tagged source=audit) routed to the platform
  *      log stream, so the trail survives even with no DB; and
- *   2. a best-effort row in the central `audit_log` table via {@see AuditWriter}.
+ *   2. a best-effort row in `audit_log` (the request's connection) via {@see AuditWriter}.
  *
  * Best-effort policy lives HERE: an audit write must never break the action it
  * records, so a persistence failure is swallowed (the log line is the durable
@@ -28,7 +28,7 @@ final class AuditService implements AuditServiceContract
     private $sink;
 
     /**
-     * @param AuditWriter|null $writer Central `audit_log` persistence. Null →
+     * @param AuditWriter|null $writer `audit_log` persistence. Null →
      *        log-only (tests / no DB available).
      * @param (callable(string):void)|null $sink Where each JSON line goes.
      *        Defaults to error_log(); inject a file/SIEM sink or a no-op in tests.

@@ -6,11 +6,12 @@ use AlfaCode\LetMigrate\Contract\MigrationInterface;
 use AlfaCode\LetMigrate\Contract\SchemaBuilderInterface;
 
 /**
- * Audit — central `audit_log` (CONTROL PLANE), append-only.
+ * Audit — per-tenant `audit_log`, append-only.
  *
  * Attributable trail for security/compliance: login, tenant.switch,
- * tenant.create, member.invite, user.registered, feedback.submitted, etc. Lives
- * central so cross-tenant admin actions are captured in one place. Owned by the
+ * tenant.create, member.invite, user.registered, feedback.submitted, etc. Ships
+ * in the TENANT template, so every tenant database gets its own trail and the
+ * Audit plugin writes whichever one the request is routed to. Owned by the
  * Audit plugin (solves audit.trail); User/Feedback/Tenancy write it ONLY through
  * AuditServiceContract. Stores identifiers + structured meta only — no
  * passwords/tokens/PII payloads.

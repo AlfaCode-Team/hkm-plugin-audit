@@ -18,17 +18,26 @@ use Plugins\Audit\Application\Ports\AuditWriter;
 use Plugins\Audit\Application\Services\AuditService;
 use Plugins\Audit\Infrastructure\Persistence\AuditLogRepository;
 use Plugins\Audit\Infrastructure\Persistence\AuditTrail;
-use Plugins\Database\API\Contracts\DatabaseConnectionManagerContract;
 
 /**
- * Audit plugin — owns the 'audit.trail' domain and the central `audit_log` table.
+ * Audit plugin — owns the 'audit.trail' domain and the `audit_log` table.
  *
  * The SINGLE writer/reader of that table. Other plugins (User, Feedback, Tenancy)
  * declare requires: ["audit.trail"] and record through the published
  * {@see AuditServiceContract} — they never write `audit_log` themselves.
  *
- * The audit trail is always central: the writer/reader are pinned to the
- * ConnectionManager default connection, never a tenant-routed one.
+ * ── WHICH DATABASE: THE REQUEST'S ─────────────────────────────────────────
+ * The writer and reader take the request's `DatabasePort`. On a tenant-routed
+ * request that is the TENANT's database — each tenant has its own
+ * `audit_log`, created from `database/tenant-template/` — and on an unrouted
+ * request it is the central connection. There is no pinned central trail:
+ * `database/migrations/` ships nothing, and an earlier revision of this
+ * docblock claimed otherwise.
+ *
+ * A caller that needs a record in a SPECIFIC tenant's trail must therefore
+ * write it while the request is scoped to that tenant (Tenancy's switch audit
+ * does exactly this). Every entry is also emitted as a JSON log line, so a
+ * request whose connection has no `audit_log` loses the row, not the event.
  */
 final class Provider implements ModuleContract
 {
@@ -51,7 +60,10 @@ final class Provider implements ModuleContract
 
     public function register(ModuleContainer $container): void
     {
-        // Write side: persistence seam behind the audit service (central conn).
+        // Write side: persistence seam behind the audit service — on the
+        // request's connection (see the class docblock). A request singleton
+        // (bindInternal), so whichever connection it is first resolved on is
+        // the one every record in that request goes to.
         $container->bindInternal(AuditWriter::class, static fn (ModuleContainer $c): AuditWriter =>
             new AuditTrail($c->make(DatabasePort::class)));
 

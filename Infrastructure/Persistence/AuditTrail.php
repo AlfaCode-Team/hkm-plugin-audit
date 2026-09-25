@@ -9,9 +9,10 @@ use AlfacodeTeam\PhpServicePlatform\Kernel\Ports\DatabasePort;
 use Plugins\Audit\Application\Ports\AuditWriter;
 
 /**
- * AuditTrail — append-only writer for the central `audit_log` table.
+ * AuditTrail — append-only writer for the `audit_log` table.
  *
- * Access rule: DatabasePort ONLY (central connection). Records identifiers +
+ * Access rule: DatabasePort ONLY — the request's connection, so a tenant-routed
+ * request writes that tenant's own trail (see Provider). Records identifiers +
  * structured meta only — never passwords/tokens/PII payloads. Write half of the
  * table; the read/query half is {@see AuditLogRepository}.
  *
@@ -23,7 +24,7 @@ use Plugins\Audit\Application\Ports\AuditWriter;
 final class AuditTrail implements AuditWriter
 {
     public function __construct(
-        private readonly DatabasePort $central,
+        private readonly DatabasePort $db,
     ) {}
 
     public function write(
@@ -34,7 +35,7 @@ final class AuditTrail implements AuditWriter
         ?string $ip = null,
     ): void {
         try {
-            $this->central->execute(
+            $this->db->execute(
                 'INSERT INTO audit_log (event_id, user_id, tenant_id, action, ip, meta, occurred_at)
                  VALUES (:eid, :uid, :tid, :action, :ip, :meta, :ts)',
                 [
