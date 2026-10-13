@@ -13,6 +13,7 @@ use AlfacodeTeam\PhpServicePlatform\Kernel\Pipelines\Worker\WorkerPipeline;
 use AlfacodeTeam\PhpServicePlatform\Kernel\Ports\DatabasePort;
 use AlfacodeTeam\PhpServicePlatform\Kernel\Security\Identity;
 use Plugins\Audit\API\Contracts\AuditReaderContract;
+use Plugins\Audit\API\Contracts\AuditSearchContract;
 use Plugins\Audit\API\Contracts\AuditServiceContract;
 use Plugins\Audit\Application\Ports\AuditWriter;
 use Plugins\Audit\Application\Services\AuditService;
@@ -55,7 +56,7 @@ final class Provider implements ModuleContract
     /** @return list<class-string> */
     public function exposes(): array
     {
-        return [AuditServiceContract::class, AuditReaderContract::class];
+        return [AuditServiceContract::class, AuditReaderContract::class, AuditSearchContract::class];
     }
 
     public function register(ModuleContainer $container): void
@@ -94,6 +95,11 @@ final class Provider implements ModuleContract
 
         // Published read/query contract for control-plane admin surfaces.
         $container->bind(AuditReaderContract::class, static fn (ModuleContainer $c): AuditReaderContract =>
+            new AuditLogRepository($c->make(DatabasePort::class)));
+
+        // Published filtered / counted / offset-paged read (opt-in; a separate
+        // contract so AuditReaderContract implementers are unaffected).
+        $container->bind(AuditSearchContract::class, static fn (ModuleContainer $c): AuditSearchContract =>
             new AuditLogRepository($c->make(DatabasePort::class)));
     }
 

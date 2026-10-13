@@ -18,6 +18,11 @@ hkm plugins add audit
 
 Provides `audit.trail`. Requires: `database.management`.
 
+Published contracts: `AuditServiceContract` (write), `AuditReaderContract`
+(keyset-paged reads, retention purge) and `AuditSearchContract` (filtered,
+counted, offset-paged reads with per-action and per-actor counts; see
+[CHANGELOG](CHANGELOG.md)).
+
 ## Documentation
 
 - [Kernel guides](https://github.com/AlfaCode-Team/hkm-kernel/tree/main/docs/guides) — the framework contracts this plugin builds on.
