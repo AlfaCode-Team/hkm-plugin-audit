@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 — 2026-10-16
+
+### Changed
+
+- Requires kernel `^1.19.0` (was `^1.13.1`). Every first-party plugin now
+  declares the current kernel release as its floor. No code changed.
+
 ## 1.1.0 — 2026-10-13
 
 ### Added
